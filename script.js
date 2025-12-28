@@ -14,6 +14,65 @@ const priceMatrix = {
     ]
 };
 
+// Mountain region postal codes (Bergregionen)
+const mountainRegions = [
+    [1656, 1660], [1854, 1854], [1862, 1866], [1871, 1871], [1873, 1875],
+    [1882, 1882], [1884, 1885], [1911, 1911], [1914, 1914], [1918, 1918],
+    [1922, 1923], [1925, 1925], [1927, 1927], [1929, 1929], [1933, 1934],
+    [1936, 1938], [1941, 1948], [1961, 1961], [1965, 1966], [1968, 1969],
+    [1971, 1974], [1976, 1978], [1981, 1988], [1992, 1993], [1996, 1997],
+    [3714, 3718], [3723, 3723], [3753, 3753], [3755, 3757], [3763, 3766],
+    [3770, 3773], [3775, 3778], [3780, 3785], [3792, 3792], [3801, 3801],
+    [3803, 3804], [3813, 3813], [3816, 3816], [3818, 3818], [3822, 3826],
+    [3862, 3864], [3901, 3901], [3903, 3903], [3905, 3908], [3910, 3910],
+    [3913, 3914], [3916, 3920], [3922, 3929], [3932, 3935], [3943, 3944],
+    [3948, 3949], [3953, 3957], [3961, 3961], [3963, 3963], [3967, 3967],
+    [3971, 3971], [3973, 3975], [3983, 3989], [3991, 3999], [6067, 6068],
+    [6084, 6086], [6174, 6174], [6383, 6383], [6387, 6388], [6390, 6391],
+    [6433, 6434], [6464, 6465], [6475, 6475], [6485, 6485], [6490, 6491],
+    [6493, 6493], [6538, 6538], [6540, 6549], [6562, 6563], [6565, 6565],
+    [6571, 6571], [6582, 6584], [6611, 6611], [6631, 6637], [6647, 6647],
+    [6653, 6655], [6657, 6659], [6661, 6664], [6672, 6678], [6682, 6685],
+    [6690, 6690], [6692, 6696], [6717, 6720], [6722, 6724], [6781, 6781],
+    [6836, 6836], [6838, 6838], [6875, 6875], [6951, 6951], [6958, 6960],
+    [7017, 7019], [7026, 7029], [7031, 7032], [7050, 7050], [7056, 7058],
+    [7062, 7064], [7074, 7078], [7082, 7084], [7104, 7104], [7106, 7107],
+    [7109, 7116], [7122, 7122], [7126, 7128], [7130, 7130], [7132, 7132],
+    [7134, 7134], [7137, 7138], [7141, 7149], [7151, 7159], [7162, 7168],
+    [7172, 7176], [7180, 7180], [7182, 7189], [7212, 7212], [7215, 7215],
+    [7220, 7220], [7222, 7224], [7226, 7226], [7228, 7228], [7231, 7233],
+    [7235, 7235], [7240, 7247], [7249, 7250], [7252, 7252], [7260, 7260],
+    [7265, 7265], [7270, 7270], [7272, 7272], [7276, 7278], [7312, 7315],
+    [7317, 7317], [7325, 7326], [7404, 7404], [7407, 7407], [7411, 7419],
+    [7421, 7428], [7430, 7438], [7440, 7440], [7442, 7448], [7450, 7460],
+    [7462, 7464], [7472, 7473], [7477, 7477], [7482, 7482], [7484, 7484],
+    [7492, 7494], [7500, 7500], [7502, 7505], [7512, 7517], [7522, 7527],
+    [7530, 7530], [7532, 7537], [7542, 7543], [7545, 7546], [7550, 7554],
+    [7556, 7559], [7560, 7560], [7562, 7563], [7602, 7606], [7608, 7608],
+    [7610, 7610], [7710, 7710], [7741, 7748], [8857, 8858], [8894, 8898],
+    [9057, 9058], [9657, 9657]
+];
+
+// Check if postal code is in mountain region
+function isMountainRegion(postalCode) {
+    const plz = parseInt(postalCode);
+    if (isNaN(plz)) return false;
+    
+    for (let range of mountainRegions) {
+        if (plz >= range[0] && plz <= range[1]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// Extract postal code from address string
+function extractPostalCode(address) {
+    // Swiss postal codes are 4 digits
+    const match = address.match(/\b\d{4}\b/);
+    return match ? match[0] : null;
+}
+
 let selectedVolume = 0;
 let debounceTimer;
 
@@ -167,17 +226,28 @@ document.getElementById('calculateBtn').addEventListener('click', async function
     const origin = document.getElementById('origin').value.trim();
     const destination = document.getElementById('destination').value.trim();
     const errorMessage = document.getElementById('errorMessage');
+    const mountainWarning = document.getElementById('mountainWarning');
     const resultCard = document.getElementById('resultCard');
     const loading = document.getElementById('loading');
 
     // Hide previous results
     resultCard.classList.remove('show');
     errorMessage.classList.remove('show');
+    mountainWarning.classList.remove('show');
 
     // Validation
     if (!origin || !destination) {
         errorMessage.textContent = 'Bitte geben Sie Start- und Zieladresse ein.';
         errorMessage.classList.add('show');
+        return;
+    }
+
+    // Check for mountain regions
+    const originPLZ = extractPostalCode(origin);
+    const destPLZ = extractPostalCode(destination);
+    
+    if ((originPLZ && isMountainRegion(originPLZ)) || (destPLZ && isMountainRegion(destPLZ))) {
+        mountainWarning.classList.add('show');
         return;
     }
 
