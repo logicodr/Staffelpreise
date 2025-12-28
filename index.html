@@ -17,13 +17,19 @@
         <div class="calculator-card">
             <div class="input-group">
                 <label for="origin">Startadresse</label>
-                <input type="text" id="origin" placeholder="z.B. Zürich Hauptbahnhof">
+                <div class="autocomplete-wrapper">
+                    <input type="text" id="origin" placeholder="z.B. Zürich Hauptbahnhof" autocomplete="off">
+                    <div class="autocomplete-suggestions" id="originSuggestions"></div>
+                </div>
                 <div class="helper-text">Stadt oder vollständige Adresse in der Schweiz</div>
             </div>
 
             <div class="input-group">
                 <label for="destination">Zieladresse</label>
-                <input type="text" id="destination" placeholder="z.B. Bern Bahnhof">
+                <div class="autocomplete-wrapper">
+                    <input type="text" id="destination" placeholder="z.B. Bern Bahnhof" autocomplete="off">
+                    <div class="autocomplete-suggestions" id="destinationSuggestions"></div>
+                </div>
                 <div class="helper-text">Stadt oder vollständige Adresse in der Schweiz</div>
             </div>
 
