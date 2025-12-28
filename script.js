@@ -15,6 +15,143 @@ const priceMatrix = {
 };
 
 let selectedVolume = 0;
+let debounceTimer;
+
+// Autocomplete setup
+setupAutocomplete('origin', 'originSuggestions');
+setupAutocomplete('destination', 'destinationSuggestions');
+
+function setupAutocomplete(inputId, suggestionsId) {
+    const input = document.getElementById(inputId);
+    const suggestionsDiv = document.getElementById(suggestionsId);
+    let currentFocus = -1;
+
+    input.addEventListener('input', function() {
+        const value = this.value.trim();
+        
+        // Clear previous timer
+        clearTimeout(debounceTimer);
+        
+        if (value.length < 2) {
+            suggestionsDiv.classList.remove('show');
+            return;
+        }
+
+        // Debounce API calls (wait 300ms after user stops typing)
+        debounceTimer = setTimeout(() => {
+            searchAddress(value, suggestionsDiv, input);
+        }, 300);
+    });
+
+    // Handle keyboard navigation
+    input.addEventListener('keydown', function(e) {
+        const items = suggestionsDiv.getElementsByClassName('autocomplete-item');
+        
+        if (e.key === 'ArrowDown') {
+            e.preventDefault();
+            currentFocus++;
+            setActive(items, currentFocus);
+        } else if (e.key === 'ArrowUp') {
+            e.preventDefault();
+            currentFocus--;
+            setActive(items, currentFocus);
+        } else if (e.key === 'Enter') {
+            e.preventDefault();
+            if (currentFocus > -1 && items[currentFocus]) {
+                items[currentFocus].click();
+            }
+        } else if (e.key === 'Escape') {
+            suggestionsDiv.classList.remove('show');
+        }
+    });
+
+    function setActive(items, index) {
+        if (!items.length) return;
+        
+        // Remove active class from all
+        for (let item of items) {
+            item.classList.remove('active');
+        }
+        
+        // Wrap around
+        if (index >= items.length) currentFocus = 0;
+        if (index < 0) currentFocus = items.length - 1;
+        
+        // Add active class
+        if (items[currentFocus]) {
+            items[currentFocus].classList.add('active');
+        }
+    }
+
+    // Close suggestions when clicking outside
+    document.addEventListener('click', function(e) {
+        if (e.target !== input) {
+            suggestionsDiv.classList.remove('show');
+        }
+    });
+}
+
+async function searchAddress(query, suggestionsDiv, inputElement) {
+    suggestionsDiv.innerHTML = '<div class="autocomplete-loading">Suche...</div>';
+    suggestionsDiv.classList.add('show');
+
+    const switzerlandBounds = 'viewbox=5.96,45.82,10.49,47.81&bounded=1';
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=ch&${switzerlandBounds}&limit=5`;
+
+    try {
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'TransportPriceCalculator/1.0'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Suche fehlgeschlagen');
+        }
+
+        const results = await response.json();
+
+        if (results && results.length > 0) {
+            displaySuggestions(results, suggestionsDiv, inputElement);
+        } else {
+            suggestionsDiv.innerHTML = '<div class="autocomplete-loading">Keine Ergebnisse gefunden</div>';
+        }
+    } catch (error) {
+        console.error('Autocomplete error:', error);
+        suggestionsDiv.innerHTML = '<div class="autocomplete-loading">Fehler bei der Suche</div>';
+    }
+}
+
+function displaySuggestions(results, suggestionsDiv, inputElement) {
+    suggestionsDiv.innerHTML = '';
+
+    results.forEach(result => {
+        const item = document.createElement('div');
+        item.className = 'autocomplete-item';
+        
+        const mainText = document.createElement('div');
+        mainText.className = 'main-text';
+        mainText.textContent = result.display_name.split(',')[0];
+        
+        const subText = document.createElement('div');
+        subText.className = 'sub-text';
+        subText.textContent = result.display_name;
+        
+        item.appendChild(mainText);
+        item.appendChild(subText);
+        
+        item.addEventListener('click', function() {
+            inputElement.value = result.display_name;
+            inputElement.dataset.lat = result.lat;
+            inputElement.dataset.lon = result.lon;
+            suggestionsDiv.classList.remove('show');
+        });
+        
+        suggestionsDiv.appendChild(item);
+    });
+
+    suggestionsDiv.classList.add('show');
+}
 
 // Volume selector
 document.querySelectorAll('.volume-btn').forEach(btn => {
@@ -49,9 +186,13 @@ document.getElementById('calculateBtn').addEventListener('click', async function
     loading.classList.add('show');
 
     try {
+        // Get input elements for cached coordinates
+        const originInput = document.getElementById('origin');
+        const destInput = document.getElementById('destination');
+
         // Geocode addresses using Nominatim
-        const originCoords = await geocodeAddress(origin);
-        const destCoords = await geocodeAddress(destination);
+        const originCoords = await geocodeAddress(origin, originInput);
+        const destCoords = await geocodeAddress(destination, destInput);
 
         if (!originCoords || !destCoords) {
             throw new Error('Eine oder beide Adressen konnten nicht gefunden werden.');
@@ -76,8 +217,16 @@ document.getElementById('calculateBtn').addEventListener('click', async function
 });
 
 // Geocode address using Nominatim - limited to Switzerland only
-async function geocodeAddress(address) {
-    // Bounding box for Switzerland: [5.96, 45.82, 10.49, 47.81]
+async function geocodeAddress(address, inputElement) {
+    // Check if we have cached coordinates from autocomplete
+    if (inputElement && inputElement.dataset.lat && inputElement.dataset.lon) {
+        return {
+            lat: parseFloat(inputElement.dataset.lat),
+            lon: parseFloat(inputElement.dataset.lon)
+        };
+    }
+
+    // Otherwise do regular geocoding
     const switzerlandBounds = 'viewbox=5.96,45.82,10.49,47.81&bounded=1';
     const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=ch&${switzerlandBounds}&limit=1`;
 
@@ -95,7 +244,6 @@ async function geocodeAddress(address) {
         const data = await response.json();
 
         if (data && data.length > 0) {
-            // Verify result is actually in Switzerland
             const lat = parseFloat(data[0].lat);
             const lon = parseFloat(data[0].lon);
             
