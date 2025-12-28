@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transport Preisrechner</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚚 Transport Preisrechner</h1>
+            <p>Berechnen Sie Ihren Transportpreis nach Route</p>
+        </div>
+
+        <div class="calculator-card">
+            <div class="input-group">
+                <label for="origin">Startadresse</label>
+                <input type="text" id="origin" placeholder="z.B. Zürich Hauptbahnhof">
+                <div class="helper-text">Stadt oder vollständige Adresse in der Schweiz</div>
+            </div>
+
+            <div class="input-group">
+                <label for="destination">Zieladresse</label>
+                <input type="text" id="destination" placeholder="z.B. Bern Bahnhof">
+                <div class="helper-text">Stadt oder vollständige Adresse in der Schweiz</div>
+            </div>
+
+            <div class="input-group">
+                <label>Volumen / Gewicht</label>
+                <div class="volume-selector">
+                    <button class="volume-btn active" data-volume="0">0-150kg</button>
+                    <button class="volume-btn" data-volume="1">1 PAL</button>
+                    <button class="volume-btn" data-volume="2">2 PAL</button>
+                    <button class="volume-btn" data-volume="3">3 PAL</button>
+                    <button class="volume-btn" data-volume="4">4-5 PAL</button>
+                    <button class="volume-btn" data-volume="5">6-7 PAL</button>
+                    <button class="volume-btn" data-volume="6">8-9 PAL</button>
+                    <button class="volume-btn" data-volume="7">10-12 PAL</button>
+                    <button class="volume-btn" data-volume="8">13-16 PAL</button>
+                </div>
+            </div>
+
+            <button class="calculate-btn" id="calculateBtn">Preis berechnen</button>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <p>Route wird berechnet...</p>
+            </div>
+
+            <div class="error-message" id="errorMessage"></div>
+        </div>
+
+        <div class="result-card" id="resultCard">
+            <div class="route-info">
+                <h3>📍 Routeninformation</h3>
+                <div class="route-detail">
+                    <span>Von:</span>
+                    <span id="routeFrom">-</span>
+                </div>
+                <div class="route-detail">
+                    <span>Nach:</span>
+                    <span id="routeTo">-</span>
+                </div>
+                <div class="route-detail">
+                    <span>Distanz:</span>
+                    <span id="routeDistance">-</span>
+                </div>
+                <div class="route-detail">
+                    <span>Volumen:</span>
+                    <span id="routeVolume">-</span>
+                </div>
+            </div>
+
+            <div class="price-display">
+                <div class="price-label">Ihr Transportpreis</div>
+                <div>
+                    <span class="price-amount" id="priceAmount">-</span>
+                    <span class="price-currency">CHF</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,154 @@
+// Price matrix
+const priceMatrix = {
+    volumes: ['0-150kg', '1 PAL', '2 PAL', '3 PAL', '4-5 PAL', '6-7 PAL', '8-9 PAL', '10-12 PAL', '13-16 PAL'],
+    ranges: [
+        { min: 0, max: 50, prices: [73.34, 85.35, 75.52, 72.24, 70.06, 63.51, 59.14, 54.77, 52.59] },
+        { min: 51, max: 100, prices: [76.61, 91.90, 82.62, 78.80, 76.07, 70.61, 63.51, 59.14, 55.86] },
+        { min: 101, max: 150, prices: [79.89, 97.36, 89.72, 86.44, 83.16, 78.80, 70.61, 65.15, 61.32] },
+        { min: 151, max: 200, prices: [83.16, 102.82, 97.91, 92.99, 89.18, 86.44, 78.80, 82.64, 67.88] },
+        { min: 201, max: 250, prices: [85.35, 108.28, 103.91, 100.64, 96.27, 92.99, 87.53, 80.98, 76.07] },
+        { min: 251, max: 300, prices: [89.72, 113.74, 111.56, 109.37, 102.82, 99.54, 95.18, 88.62, 83.16] },
+        { min: 301, max: 350, prices: [90.59, 117.02, 113.74, 111.56, 106.10, 102.82, 97.96, 91.03, 85.35] },
+        { min: 351, max: 400, prices: [91.03, 121.38, 117.02, 113.74, 110.46, 106.53, 100.64, 93.32, 88.41] },
+        { min: 401, max: 500, prices: [91.90, 124.66, 119.20, 115.92, 113.74, 109.92, 102.82, 95.18, 89.72] }
+    ]
+};
+
+let selectedVolume = 0;
+
+// Volume selector
+document.querySelectorAll('.volume-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.volume-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        selectedVolume = parseInt(this.dataset.volume);
+    });
+});
+
+// Calculate button
+document.getElementById('calculateBtn').addEventListener('click', async function() {
+    const origin = document.getElementById('origin').value.trim();
+    const destination = document.getElementById('destination').value.trim();
+    const errorMessage = document.getElementById('errorMessage');
+    const resultCard = document.getElementById('resultCard');
+    const loading = document.getElementById('loading');
+
+    // Hide previous results
+    resultCard.classList.remove('show');
+    errorMessage.classList.remove('show');
+
+    // Validation
+    if (!origin || !destination) {
+        errorMessage.textContent = 'Bitte geben Sie Start- und Zieladresse ein.';
+        errorMessage.classList.add('show');
+        return;
+    }
+
+    // Disable button and show loading
+    this.disabled = true;
+    loading.classList.add('show');
+
+    try {
+        // Geocode addresses using Nominatim
+        const originCoords = await geocodeAddress(origin);
+        const destCoords = await geocodeAddress(destination);
+
+        if (!originCoords || !destCoords) {
+            throw new Error('Eine oder beide Adressen konnten nicht gefunden werden.');
+        }
+
+        // Calculate route using OSRM (Open Source Routing Machine)
+        const distance = await calculateRoute(originCoords, destCoords);
+
+        // Get price
+        const price = getPriceForDistance(distance, selectedVolume);
+
+        // Display results
+        displayResults(origin, destination, distance, priceMatrix.volumes[selectedVolume], price);
+
+    } catch (error) {
+        errorMessage.textContent = error.message || 'Ein Fehler ist aufgetreten. Bitte versuchen Sie es erneut.';
+        errorMessage.classList.add('show');
+    } finally {
+        this.disabled = false;
+        loading.classList.remove('show');
+    }
+});
+
+// Geocode address using Nominatim
+async function geocodeAddress(address) {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address + ', Switzerland')}&limit=1`;
+
+    try {
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'TransportPriceCalculator/1.0'
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Geocoding fehlgeschlagen');
+        }
+
+        const data = await response.json();
+
+        if (data && data.length > 0) {
+            return {
+                lat: parseFloat(data[0].lat),
+                lon: parseFloat(data[0].lon)
+            };
+        }
+        return null;
+    } catch (error) {
+        console.error('Geocoding error:', error);
+        return null;
+    }
+}
+
+// Calculate route using OSRM (Open Source Routing Machine)
+async function calculateRoute(origin, destination) {
+    // Using public OSRM server
+    const url = `https://router.project-osrm.org/route/v1/driving/${origin.lon},${origin.lat};${destination.lon},${destination.lat}?overview=false`;
+
+    try {
+        const response = await fetch(url);
+
+        if (!response.ok) {
+            throw new Error('Route konnte nicht berechnet werden');
+        }
+
+        const data = await response.json();
+
+        if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
+            const distanceMeters = data.routes[0].distance;
+            return Math.round(distanceMeters / 1000);
+        }
+
+        throw new Error('Keine Route gefunden');
+    } catch (error) {
+        console.error('Routing error:', error);
+        throw new Error('Route konnte nicht berechnet werden. Bitte versuchen Sie es erneut.');
+    }
+}
+
+// Get price for distance
+function getPriceForDistance(distance, volumeIndex) {
+    for (let range of priceMatrix.ranges) {
+        if (distance >= range.min && distance <= range.max) {
+            return range.prices[volumeIndex];
+        }
+    }
+    // If distance > 500km, use last range
+    return priceMatrix.ranges[priceMatrix.ranges.length - 1].prices[volumeIndex];
+}
+
+// Display results
+function displayResults(origin, destination, distance, volume, price) {
+    document.getElementById('routeFrom').textContent = origin;
+    document.getElementById('routeTo').textContent = destination;
+    document.getElementById('routeDistance').textContent = `${distance} km`;
+    document.getElementById('routeVolume').textContent = volume;
+    document.getElementById('priceAmount').textContent = price.toFixed(2);
+
+    document.getElementById('resultCard').classList.add('show');
+}
