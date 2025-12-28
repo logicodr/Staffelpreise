@@ -75,9 +75,11 @@ document.getElementById('calculateBtn').addEventListener('click', async function
     }
 });
 
-// Geocode address using Nominatim
+// Geocode address using Nominatim - limited to Switzerland only
 async function geocodeAddress(address) {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address + ', Switzerland')}&limit=1`;
+    // Bounding box for Switzerland: [5.96, 45.82, 10.49, 47.81]
+    const switzerlandBounds = 'viewbox=5.96,45.82,10.49,47.81&bounded=1';
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&countrycodes=ch&${switzerlandBounds}&limit=1`;
 
     try {
         const response = await fetch(url, {
@@ -93,22 +95,28 @@ async function geocodeAddress(address) {
         const data = await response.json();
 
         if (data && data.length > 0) {
-            return {
-                lat: parseFloat(data[0].lat),
-                lon: parseFloat(data[0].lon)
-            };
+            // Verify result is actually in Switzerland
+            const lat = parseFloat(data[0].lat);
+            const lon = parseFloat(data[0].lon);
+            
+            if (lat >= 45.82 && lat <= 47.81 && lon >= 5.96 && lon <= 10.49) {
+                return { lat, lon };
+            } else {
+                throw new Error('Adresse liegt nicht in der Schweiz');
+            }
         }
         return null;
     } catch (error) {
         console.error('Geocoding error:', error);
-        return null;
+        throw error;
     }
 }
 
-// Calculate route using OSRM (Open Source Routing Machine)
+// Calculate route using OSRM - optimized for car/truck routing
 async function calculateRoute(origin, destination) {
-    // Using public OSRM server
-    const url = `https://router.project-osrm.org/route/v1/driving/${origin.lon},${origin.lat};${destination.lon},${destination.lat}?overview=false`;
+    // Using OSRM with 'car' profile (also suitable for trucks)
+    // Alternative profiles: 'bike', 'foot' - but 'car' is best for transport
+    const url = `https://router.project-osrm.org/route/v1/car/${origin.lon},${origin.lat};${destination.lon},${destination.lat}?overview=false&alternatives=false`;
 
     try {
         const response = await fetch(url);
@@ -121,13 +129,19 @@ async function calculateRoute(origin, destination) {
 
         if (data.code === 'Ok' && data.routes && data.routes.length > 0) {
             const distanceMeters = data.routes[0].distance;
-            return Math.round(distanceMeters / 1000);
+            const distanceKm = Math.round(distanceMeters / 1000);
+            
+            // Optional: auch die Fahrzeit verfügbar
+            // const durationSeconds = data.routes[0].duration;
+            // const durationMinutes = Math.round(durationSeconds / 60);
+            
+            return distanceKm;
         }
 
         throw new Error('Keine Route gefunden');
     } catch (error) {
         console.error('Routing error:', error);
-        throw new Error('Route konnte nicht berechnet werden. Bitte versuchen Sie es erneut.');
+        throw new Error('Route konnte nicht berechnet werden. Bitte überprüfen Sie die Adressen.');
     }
 }
 
